@@ -424,7 +424,7 @@ function initialWizard({ customerId, mobile, skipTo } = {}) {
     customerId: customerId || null,
     isNewCustomer: false,
     customerDraft: { name: "", address: "" },
-    idProofType: "", idProofPath: "", idProofFileName: "",
+    idProofType: "", idProofPaths: [], idProofFileNames: [],
     leadId: "", deviceBrand: "", deviceModel: "", expectedPrice: "", purchasePrice: "",
     commission: "", status: "Pending", remarks: "",
     saved: false,
@@ -690,19 +690,34 @@ function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCustomerRow
     goStep("idproof");
   };
 
-  const handleFile = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    if (file.size > 1_500_000) return flash("Image too large — choose a file under 1.5 MB.", "error");
-    try {
+const handleFile = async (e) => {
+  const files = Array.from(e.target.files || []);
+  if (!files.length) return;
+  const oversized = files.find((f) => f.size > 1_500_000);
+  if (oversized) return flash("Each file must be under 1.5 MB.", "error");
+  try {
+    const uploaded = [];
+    for (const file of files) {
       const path = `${w.customerId}/${Date.now()}-${file.name}`;
       const { error } = await supabase.storage.from("id-proofs").upload(path, file, { upsert: true });
       if (error) throw error;
-      set({ idProofPath: path, idProofFileName: file.name });
-    } catch (err) {
-      flash("Could not upload that file — try again.", "error");
+      uploaded.push({ path, name: file.name });
     }
-  };
+    set({
+      idProofPaths: [...w.idProofPaths, ...uploaded.map((u) => u.path)],
+      idProofFileNames: [...w.idProofFileNames, ...uploaded.map((u) => u.name)],
+    });
+  } catch (err) {
+    flash("Could not upload one or more files — try again.", "error");
+  }
+};
+
+const removeFile = (idx) => {
+  set({
+    idProofPaths: w.idProofPaths.filter((_, i) => i !== idx),
+    idProofFileNames: w.idProofFileNames.filter((_, i) => i !== idx),
+  });
+};
 
   const handleSave = async () => {
     try {
@@ -723,13 +738,13 @@ function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCustomerRow
         created_at: new Date().toISOString(),
       });
 
-      if (w.idProofType || w.idProofPath) {
-        await updateCustomerRow(w.customerId, {
-          id_proof_type: w.idProofType || customer?.idProofType || "",
-          id_proof_path: w.idProofPath || customer?.idProofPath || "",
-          id_proof_file_name: w.idProofFileName || customer?.idProofFileName || "",
-        });
-      }
+   if (w.idProofType || w.idProofPaths.length) {
+  await updateCustomerRow(w.customerId, {
+    id_proof_type: w.idProofType || customer?.idProofType || "",
+    id_proof_path: w.idProofPaths.length ? w.idProofPaths.join(",") : (customer?.idProofPath || ""),
+    id_proof_file_name: w.idProofFileNames.length ? w.idProofFileNames.join(",") : (customer?.idProofFileName || ""),
+  });
+}
       flash("Lead saved.");
       set({ step: "saved" });
     } catch (e) {
@@ -865,9 +880,9 @@ function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCustomerRow
       {w.step === "idproof" && (
         <div>
           <SectionTitle icon={ClipboardList} title="ID proof" subtitle="Optional — add if required for this visit." />
-          <Field label="ID proof type">
+                  <Field label="ID proof type">
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {["Driving Licence", "Aadhaar Card", "Passport"].map((t) => (
+              {["Driving Licence", "Aadhaar Card", "PAN Card", "Passport"].map((t) => (
                 <button key={t} onClick={() => set({ idProofType: t })}
                   style={{
                     textAlign: "left", padding: "12px 14px", borderRadius: 8, cursor: "pointer",
@@ -879,16 +894,31 @@ function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCustomerRow
               ))}
             </div>
           </Field>
-          <Field label="Upload document (optional)">
+          <Field label="Upload documents (optional)">
             <label style={{
               display: "flex", alignItems: "center", justifyContent: "center", gap: 8,
               border: `1.5px dashed ${C.line}`, borderRadius: 8, padding: "16px", cursor: "pointer", color: C.slate,
             }}>
               <Upload size={16} />
-              {w.idProofFileName ? w.idProofFileName : "Choose image"}
-              <input type="file" accept="image/*" onChange={handleFile} style={{ display: "none" }} />
+              {w.idProofFileNames.length > 0 ? `${w.idProofFileNames.length} file(s) selected — add more` : "Choose images"}
+              <input type="file" accept="image/*" multiple onChange={handleFile} style={{ display: "none" }} />
             </label>
-          </Field>
+            {w.idProofFileNames.length > 0 && (
+              <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 6 }}>
+                {w.idProofFileNames.map((name, i) => (
+                  <div key={i} style={{
+                    display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 12.5,
+                    color: C.ink2, background: C.paperDim, padding: "6px 10px", borderRadius: 6,
+                  }}>
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{name}</span>
+                    <button onClick={() => removeFile(i)} style={{ background: "none", border: "none", cursor: "pointer", color: C.rust, display: "flex" }}>
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+        </Field>
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             <BigButton onClick={() => goStep("finish")}>Continue</BigButton>
           </div>
@@ -925,10 +955,11 @@ function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCustomerRow
             <Row label="Customer" value={customer ? `${customer.name} (${customer.id})` : "—"} />
             <Row label="Device" value={`${w.deviceBrand} ${w.deviceModel}`} />
             <Row label="Lead ID" value={w.leadId} />
-            <Row label="Expected price" value={inr(w.expectedPrice)} />
+            {/* <Row label="Expected price" value={inr(w.expectedPrice)} /> */}
             <Row label="Purchase price" value={inr(w.purchasePrice)} />
             <Row label="Commission amount" value={inr(commissionAmount)} />
             <Row label="ID proof" value={w.idProofType || "Not provided"} />
+            <Row label="ID proof files" value={w.idProofFileNames.length ? `${w.idProofFileNames.length} file(s)` : "None"} />
           </div>
 
           <BigButton tone="ledger" onClick={handleSave}>Save lead</BigButton>
