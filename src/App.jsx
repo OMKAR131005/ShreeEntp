@@ -238,9 +238,24 @@ export default function App() {
   const [customers, setCustomers] = useState([]);
   const [leads, setLeads] = useState([]);
   const [fes, setFes] = useState([]);
-
-  const [session, setSession] = useState(null); // {role, username, name}
-  const [view, setView] = useState("login");
+  const [session, setSession] = useState(() => {
+    try {
+      const saved = sessionStorage.getItem("session");
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  });
+ const [view, setView] = useState(() => {
+  try {
+    const saved = sessionStorage.getItem("session");
+    if (!saved) return "login";
+    const s = JSON.parse(saved);
+    return s.role === "admin" ? "admin" : "fe-dashboard";
+  } catch {
+    return "login";
+  }
+});
   const [viewParams, setViewParams] = useState({});
   const [wizard, setWizard] = useState(null);
 
@@ -249,6 +264,7 @@ export default function App() {
     setTimeout(() => setToast(null), 2600);
   }, []);
 
+  
   useEffect(() => {
     (async () => {
       try {
@@ -299,9 +315,19 @@ export default function App() {
   }, [flash]);
 
   const goto = (v, params = {}) => { setView(v); setViewParams(params); };
-  const logout = () => { setSession(null); setWizard(null); goto("login"); };
-  const handleLogin = (s) => { setSession(s); goto(s.role === "admin" ? "admin" : "fe-dashboard"); };
+  const logout = () => {
+    sessionStorage.removeItem("session");
+    setSession(null);
+    setWizard(null);
+    goto("login");
+  };
+  const handleLogin = (s) => {
+    sessionStorage.setItem("session", JSON.stringify(s));
+    setSession(s);
+    goto(s.role === "admin" ? "admin" : "fe-dashboard");
+  };
 
+  
   if (!ready) {
     return (
       <Shell>
@@ -589,6 +615,20 @@ function FeDashboard({ fe, leads, customers, onLogout, onAddLead, onOpenCustomer
 /* ---------------------------------------------------------------------- */
 
 const STEPS = ["mobile", "customer", "device", "leadid", "commission", "idproof", "finish"];
+const BRAND_MODELS = {
+  Apple: ["iPhone 11", "iPhone 11 Pro", "iPhone 12", "iPhone 12 Pro", "iPhone 13", "iPhone 13 Pro", "iPhone 14", "iPhone 14 Pro", "iPhone 15", "iPhone 15 Pro", "iPhone 16", "iPhone 16 Pro"],
+  Samsung: ["Galaxy S21", "Galaxy S22", "Galaxy S23", "Galaxy S24", "Galaxy Note 20", "Galaxy A54", "Galaxy A34", "Galaxy M54", "Galaxy Z Flip", "Galaxy Z Fold"],
+  Redmi: ["Redmi Note 10", "Redmi Note 11", "Redmi Note 12", "Redmi Note 13", "Redmi 10", "Redmi 12", "Redmi K50"],
+  Xiaomi: ["Xiaomi 11", "Xiaomi 12", "Xiaomi 13", "Xiaomi 14"],
+  OnePlus: ["OnePlus Nord", "OnePlus Nord 2", "OnePlus 9", "OnePlus 10", "OnePlus 11", "OnePlus 12"],
+  Vivo: ["Vivo Y series", "Vivo V series", "Vivo X series", "Vivo T series"],
+  Oppo: ["Oppo A series", "Oppo F series", "Oppo Reno series"],
+  Realme: ["Realme Narzo", "Realme GT", "Realme C series", "Realme Number series"],
+  Motorola: ["Moto G series", "Moto Edge series"],
+  Google: ["Pixel 6", "Pixel 7", "Pixel 8", "Pixel 9"],
+  Nothing: ["Phone 1", "Phone 2", "Phone 2a"],
+  Other: [],
+};
 
 function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCustomerRow, updateCustomerRow, addLeadRow, flash, onCancel, onDone, onFinishToDashboard }) {
   const w = wizard;
@@ -630,11 +670,10 @@ function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCustomerRow
   const customerHistory = customer ? leads.filter((l) => l.customerId === customer.id) : [];
 
   const handleDeviceNext = () => {
-    if (!w.deviceBrand.trim() || !w.deviceModel.trim()) return flash("Enter device brand and model.", "error");
-    if (w.expectedPrice === "" || Number(w.expectedPrice) < 0) return flash("Enter a valid expected price.", "error");
-    if (w.purchasePrice === "" || Number(w.purchasePrice) < 0) return flash("Enter a valid purchase price.", "error");
-    goStep("leadid");
-  };
+  if (!w.deviceBrand || !w.deviceModel) return flash("Select device brand and model.", "error");
+  if (w.purchasePrice === "" || Number(w.purchasePrice) < 0) return flash("Enter a valid purchase price.", "error");
+  goStep("leadid");
+};
 
   const handleLeadIdNext = () => {
     if (!w.leadId.trim()) return flash("Lead ID is required.", "error");
@@ -675,7 +714,7 @@ function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCustomerRow
         visit_date: new Date().toISOString(),
         device_brand: w.deviceBrand.trim(),
         device_model: w.deviceModel.trim(),
-        expected_price: Number(w.expectedPrice),
+        expected_price: Number(w.purchasePrice),
         purchase_price: Number(w.purchasePrice),
         commission: Number(w.commission),
         commission_amount: commissionAmount,
@@ -762,20 +801,42 @@ function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCustomerRow
         <div>
           <SectionTitle icon={Smartphone} title="Device details" />
           <Field label="Device brand">
-            <TextInput autoFocus value={w.deviceBrand} onChange={(e) => set({ deviceBrand: e.target.value })} placeholder="e.g. Apple, Samsung" />
+            <Select autoFocus value={w.deviceBrand in BRAND_MODELS ? w.deviceBrand : (w.deviceBrand ? "Other" : "")}
+              onChange={(e) => set({ deviceBrand: e.target.value === "Other" ? "" : e.target.value, deviceModel: "" })}>
+              <option value="">Select brand</option>
+              {Object.keys(BRAND_MODELS).map((b) => <option key={b} value={b}>{b}</option>)}
+            </Select>
           </Field>
-          <Field label="Device model">
-            <TextInput value={w.deviceModel} onChange={(e) => set({ deviceModel: e.target.value })} placeholder="e.g. iPhone 14" />
-          </Field>
-          <Field label="Expected / selling price">
-            <TextInput inputMode="decimal" value={w.expectedPrice} onChange={(e) => set({ expectedPrice: e.target.value })} placeholder="₹" />
-          </Field>
+
+          {(!( w.deviceBrand in BRAND_MODELS) || w.deviceBrand === "") && (
+            <Field label="Enter brand name">
+              <TextInput value={w.deviceBrand} onChange={(e) => set({ deviceBrand: e.target.value })} placeholder="Type brand name" />
+            </Field>
+          )}
+
+          {w.deviceBrand in BRAND_MODELS && BRAND_MODELS[w.deviceBrand].length > 0 ? (
+            <Field label="Device model">
+              <Select value={w.deviceModel} onChange={(e) => set({ deviceModel: e.target.value === "Other" ? "" : e.target.value })}>
+                <option value="">Select model</option>
+                {BRAND_MODELS[w.deviceBrand].map((m) => <option key={m} value={m}>{m}</option>)}
+                <option value="Other">Other</option>
+              </Select>
+              {!BRAND_MODELS[w.deviceBrand].includes(w.deviceModel) && (
+                <TextInput style={{ marginTop: 8 }} value={w.deviceModel} onChange={(e) => set({ deviceModel: e.target.value })} placeholder="Type model name" />
+              )}
+            </Field>
+          ) : (
+            <Field label="Device model">
+              <TextInput value={w.deviceModel} onChange={(e) => set({ deviceModel: e.target.value })} placeholder="Type model name" />
+            </Field>
+          )}
+
           <Field label="Purchase price">
             <TextInput inputMode="decimal" value={w.purchasePrice} onChange={(e) => set({ purchasePrice: e.target.value })} placeholder="₹" />
           </Field>
           <BigButton onClick={handleDeviceNext}>Continue</BigButton>
         </div>
-      )}
+    )}
 
       {w.step === "leadid" && (
         <div>
@@ -787,7 +848,6 @@ function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCustomerRow
           <BigButton onClick={handleLeadIdNext}>Continue</BigButton>
         </div>
       )}
-
       {w.step === "commission" && (
         <div>
           <SectionTitle icon={Wallet} title="Commission" subtitle="Purchase price has no effect on commission." />
