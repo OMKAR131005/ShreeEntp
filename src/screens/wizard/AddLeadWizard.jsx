@@ -6,7 +6,7 @@ import { STATUS_META } from "../../constants/statusMeta";
 import { BRAND_MODELS } from "../../constants/brandModels";
 import { Field } from "../../components/ui/Field";
 import { TextInput } from "../../components/ui/TextInput";
-import { TextArea } from "../../components/ui/TextArea"; 
+import { TextArea } from "../../components/ui/TextArea";
 import { Select } from "../../components/ui/Select";
 import { BigButton } from "../../components/ui/BigButton";
 import { ProgressDots } from "../../components/ui/ProgressDots";
@@ -21,6 +21,14 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
   const set = (patch) => setWizard((cur) => ({ ...cur, ...patch }));
   const [submitting, setSubmitting] = useState(false);
 
+  // ---- Validation helpers ----
+  const isValidMobile = (m) => /^[6-9]\d{9}$/.test(last10(m));
+  const isValidName = (n) => /^[a-zA-Z\s.'-]{2,60}$/.test(n.trim());
+  const isValidAddress = (a) => a.trim().length >= 10 && a.trim().length <= 300;
+  const isValidLeadId = (id) => /^[a-zA-Z0-9-]{4,30}$/.test(id.trim());
+  const isValidPrice = (p) => p !== "" && !isNaN(p) && Number(p) > 0 && Number(p) <= 500000;
+  const isValidCommission = (c) => c !== "" && !isNaN(c) && Number(c) >= 0 && Number(c) <= 100000;
+
   const findExisting = (mobile) => customers.find((c) => last10(c.mobile) === last10(mobile) && last10(mobile).length === 10);
 
   const goStep = (s) => set({ step: s });
@@ -29,15 +37,21 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
   };
 
   const handleMobileNext = () => {
-    if (last10(w.mobile).length !== 10) return flash("Enter a valid 10-digit mobile number.", "error");
+    if (!isValidMobile(w.mobile)) {
+      return flash("Enter a valid 10-digit mobile number starting with 6-9.", "error");
+    }
     const existing = findExisting(w.mobile);
     set({ isNewCustomer: !existing, customerId: existing ? existing.id : null, step: "customer" });
   };
 
   // No DB call here anymore — customer creation is deferred to handleSave.
   const handleNewCustomerNext = () => {
-    if (!w.customerDraft.name.trim()) return flash("Customer name is required.", "error");
-    if (!w.customerDraft.address.trim()) return flash("Pickup address is required.", "error");
+    if (!isValidName(w.customerDraft.name)) {
+      return flash("Enter a valid name (letters only, 2-60 characters).", "error");
+    }
+    if (!isValidAddress(w.customerDraft.address)) {
+      return flash("Address must be between 10 and 300 characters.", "error");
+    }
     set({ step: "device" });
   };
 
@@ -45,13 +59,19 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
   const customerHistory = customer ? leads.filter((l) => l.customerId === customer.id) : [];
 
   const handleDeviceNext = () => {
-    if (!w.deviceBrand || !w.deviceModel) return flash("Select device brand and model.", "error");
-    if (w.purchasePrice === "" || Number(w.purchasePrice) < 0) return flash("Enter a valid purchase price.", "error");
+    if (!w.deviceBrand.trim() || !w.deviceModel.trim()) {
+      return flash("Select or enter both device brand and model.", "error");
+    }
+    if (!isValidPrice(w.purchasePrice)) {
+      return flash("Enter a valid purchase price between ₹1 and ₹5,00,000.", "error");
+    }
     goStep("leadid");
   };
 
   const handleLeadIdNext = () => {
-    if (!w.leadId.trim()) return flash("Lead ID is required.", "error");
+    if (!isValidLeadId(w.leadId)) {
+      return flash("Lead ID must be 4-30 characters (letters, numbers, hyphens only).", "error");
+    }
     if (leads.some((l) => l.leadId.toLowerCase() === w.leadId.trim().toLowerCase())) {
       return flash("This Lead ID already exists — check with Cashify.", "error");
     }
@@ -61,7 +81,9 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
   const commissionAmount = (Number(w.commission) || 0) * 13;
 
   const handleCommissionNext = () => {
-    if (w.commission === "" || Number(w.commission) < 0) return flash("Enter the commission number.", "error");
+    if (!isValidCommission(w.commission)) {
+      return flash("Enter a valid commission amount (0 - 1,00,000).", "error");
+    }
     goStep("idproof");
   };
 
@@ -81,6 +103,8 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
   const handleFile = (type, e) => {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
+    const invalidType = files.find((f) => !/^image\/(jpeg|png|jpg|webp)$/.test(f.type));
+    if (invalidType) return flash("Only JPG, PNG or WEBP images are allowed.", "error");
     const oversized = files.find((f) => f.size > 1_500_000);
     if (oversized) return flash("Each image must be under 1.5 MB.", "error");
     const filesByType = { ...(w.idProofFilesByType || {}) };
@@ -91,6 +115,17 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
   // Single point of DB contact: creates customer (if new), uploads id proofs, saves lead, updates customer.
   const handleSave = async () => {
     if (submitting) return; // already saving — ignore extra clicks
+
+    // Final safety-net validation in case any state was set outside the normal step flow.
+    if (
+      !isValidMobile(w.mobile) ||
+      !isValidLeadId(w.leadId) ||
+      !isValidPrice(w.purchasePrice) ||
+      !isValidCommission(w.commission)
+    ) {
+      return flash("Some details are invalid — please review the form.", "error");
+    }
+
     setSubmitting(true);
     try {
       let customerId = w.customerId;
@@ -135,7 +170,7 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
         purchase_price: Number(w.purchasePrice),
         commission: Number(w.commission),
         commission_amount: commissionAmount,
-        status: w.status,
+        status: "Completed",
         remarks: w.remarks.trim(),
         created_at: new Date().toISOString(),
       });
@@ -181,10 +216,18 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
         <div>
           <SectionTitle icon={Phone} title="Customer mobile number" subtitle="We'll check if this customer already exists." />
           <Field label="Mobile number">
-            <TextInput inputMode="numeric" autoFocus value={w.mobile}
-              onChange={(e) => set({ mobile: e.target.value })}
+            <TextInput
+              inputMode="numeric"
+              autoFocus
+              value={w.mobile}
+              onChange={(e) => {
+                const digitsOnly = e.target.value.replace(/\D/g, "").slice(0, 10);
+                set({ mobile: digitsOnly });
+              }}
               onKeyDown={(e) => e.key === "Enter" && handleMobileNext()}
-              placeholder="10-digit mobile number" />
+              placeholder="10-digit mobile number"
+              maxLength={10}
+            />
           </Field>
           <BigButton onClick={handleMobileNext}>Continue</BigButton>
         </div>
@@ -260,7 +303,15 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
           )}
 
           <Field label="Purchase price">
-            <TextInput inputMode="decimal" value={w.purchasePrice} onChange={(e) => set({ purchasePrice: e.target.value })} placeholder="₹" />
+            <TextInput
+              inputMode="decimal"
+              value={w.purchasePrice}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9.]/g, "");
+                set({ purchasePrice: val });
+              }}
+              placeholder="₹"
+            />
           </Field>
           <BigButton onClick={handleDeviceNext}>Continue</BigButton>
         </div>
@@ -281,7 +332,16 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
         <div>
           <SectionTitle icon={Wallet} title="Commission" subtitle="Purchase price has no effect on commission." />
           <Field label="Commission">
-            <TextInput autoFocus inputMode="decimal" value={w.commission} onChange={(e) => set({ commission: e.target.value })} placeholder="Enter commission number" />
+            <TextInput
+              autoFocus
+              inputMode="decimal"
+              value={w.commission}
+              onChange={(e) => {
+                const val = e.target.value.replace(/[^0-9.]/g, "");
+                set({ commission: val });
+              }}
+              placeholder="Enter commission number"
+            />
           </Field>
           <div style={{ background: "#fff", border: `1px solid ${C.line}`, borderRadius: 10, padding: 18, marginBottom: 18, textAlign: "center" }}>
             <div style={{ fontSize: 12.5, color: C.slate, fontWeight: 600, marginBottom: 4 }}>Commission amount (× 13)</div>
@@ -336,24 +396,7 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
       {w.step === "finish" && (
         <div>
           <SectionTitle icon={ClipboardList} title="Status &amp; remarks" />
-          {/* <Field label="Status">
-            <div style={{ display: "flex", gap: 8 }}>
-              {["Pending", "Completed", "Cancelled"].map((s) => {
-                const meta = STATUS_META[s];
-                const active = w.status === s;
-                return (
-                  <button key={s} onClick={() => set({ status: s })}
-                    style={{
-                      flex: 1, padding: "10px 8px", borderRadius: 8, cursor: "pointer", fontSize: 13.5, fontWeight: 700,
-                      border: `1.5px solid ${active ? meta.fg : C.line}`,
-                      background: active ? meta.bg : "#fff", color: active ? meta.fg : C.ink2,
-                    }}>
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
-          </Field> */}
+
           <Field label="Remarks (optional)">
             <TextArea value={w.remarks} onChange={(e) => set({ remarks: e.target.value })} placeholder="Anything worth noting about this visit" />
           </Field>
@@ -372,7 +415,7 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
             <Row label="ID proof" value={(w.idProofTypes || []).length > 0 ? w.idProofTypes.join(", ") : "Not provided"} />
           </div>
 
-         <BigButton tone="ledger" onClick={handleSave} disabled={submitting}>
+          <BigButton tone="ledger" onClick={handleSave} disabled={submitting}>
             {submitting ? "Saving..." : "Complete"}
           </BigButton>
         </div>
