@@ -372,8 +372,8 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
             <Row label="ID proof" value={(w.idProofTypes || []).length > 0 ? w.idProofTypes.join(", ") : "Not provided"} />
           </div>
 
-          <BigButton tone="ledger" onClick={handleSave} disabled={submitting}>
-            {submitting ? "Saving..." : "Save lead"}
+         <BigButton tone="ledger" onClick={handleSave} disabled={submitting}>
+            {submitting ? "Saving..." : "Complete"}
           </BigButton>
         </div>
       )}
