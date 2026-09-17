@@ -1,10 +1,10 @@
 import { useMemo } from "react";
 import { Phone, Plus } from "lucide-react";
 import { C } from "../constants/colors";
-import { Badge } from "../componets/ui/Badge";
-import { Row } from "../componets/ui/Row";
-import { BackBtn } from "../componets/ui/BackBtn";
-import { BigButton } from "../componets/ui/BigButton";
+import { Badge } from "../components/ui/Badge";
+import { Row } from "../components/ui/Row";
+import { BackBtn } from "../components/ui/BackBtn";
+import { BigButton } from "../components/ui/BigButton";
 import { fmtDate, fmtDateTime, inr } from "../utils/formatters";
 
 export function CustomerProfile({ customerId, customers, leads, session, onBack, onAddLead }) {

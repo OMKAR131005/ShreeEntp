@@ -6,7 +6,7 @@ import { STATUS_META } from "../../constants/statusMeta";
 import { BRAND_MODELS } from "../../constants/brandModels";
 import { Field } from "../../componets/ui/Field";
 import { TextInput } from "../../componets/ui/TextInput";
-import { TextArea } from "../../componets/ui/TextArea";
+import { TextArea } from "../../componets/ui/TextArea"; 
 import { Select } from "../../componets/ui/Select";
 import { BigButton } from "../../componets/ui/BigButton";
 import { ProgressDots } from "../../componets/ui/ProgressDots";
