@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, LogOut } from "lucide-react";
 import { C } from "../constants/colors";
-import { StatTile } from "../componets/ui/StatTile";
-import { BigButton } from "../componets/ui/BigButton";
-import { Badge } from "../componets/ui/Badge";
+import { StatTile } from "../components/ui/StatTile";
+import { BigButton } from "../components/ui/BigButton";
+import { Badge } from "../components/ui/Badge";
 import { todayISO, isSameDay } from "../utils/formatters";
 
 const PAGE_SIZE = 8;

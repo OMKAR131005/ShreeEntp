@@ -2,10 +2,10 @@ import { useState } from "react";
 import { Plus, Pencil, Ban, RotateCcw } from "lucide-react";
 import { supabase } from "../../supabaseClient";
 import { C } from "../../constants/colors";
-import { Field } from "../../componets/ui/Field";
-import { TextInput } from "../../componets/ui/TextInput";
-import { BigButton } from "../../componets/ui/BigButton";
-import { IconBtn } from "../../componets/ui/IconBtn";
+import { Field } from "../../components/ui/Field";
+import { TextInput } from "../../components/ui/TextInput";
+import { BigButton } from "../../components/ui/BigButton";
+import { IconBtn } from "../../components/ui/IconBtn";
 
 export function AdminFes({ fes, setFes, leads, flash }) {
   const [adding, setAdding] = useState(false);

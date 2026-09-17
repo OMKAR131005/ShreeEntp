@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react";
 import { Download } from "lucide-react";
 import { C } from "../../constants/colors";
-import { Field } from "../../componets/ui/Field";
-import { TextInput } from "../../componets/ui/TextInput";
-import { Select } from "../../componets/ui/Select";
-import { Badge } from "../../componets/ui/Badge";
+import { Field } from "../../components/ui/Field";
+import { TextInput } from "../../components/ui/TextInput";
+import { Select } from "../../components/ui/Select";
+import { Badge } from "../../components/ui/Badge";
 import { todayISO, startOfWeek, fmtDate, inr } from "../../utils/formatters";
 
 export function AdminLeadsFilters({ customers, leads, fes, flash, onOpenCustomer }) {

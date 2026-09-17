@@ -2,10 +2,10 @@ import { useState } from "react";
 import { ArrowLeft, Smartphone, ShieldCheck } from "lucide-react";
 import { supabase } from "../supabaseClient";
 import { C } from "../constants/colors";
-import { Field } from "../componets/ui/Field";
-import { Select } from "../componets/ui/Select";
-import { TextInput } from "../componets/ui/TextInput";
-import { BigButton } from "../componets/ui/BigButton";
+import { Field } from "../components/ui/Field";
+import { Select } from "../components/ui/Select";
+import { TextInput } from "../components/ui/TextInput";
+import { BigButton } from "../components/ui/BigButton";
 
 export function LoginScreen({ fes, onLogin }) {
   const [role, setRole] = useState(null);

@@ -1,8 +1,8 @@
 import { useState, useMemo } from "react";
 import { C } from "../../constants/colors";
-import { Field } from "../../componets/ui/Field";
-import { TextInput } from "../../componets/ui/TextInput";
-import { Badge } from "../../componets/ui/Badge";
+import { Field } from "../../components/ui/Field";
+import { TextInput } from "../../components/ui/TextInput";
+import { Badge } from "../../components/ui/Badge";
 import { fmtDate } from "../../utils/formatters";
 
 export function AdminSearch({ customers, leads, onOpenCustomer }) {

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { C } from "../../constants/colors";
-import { StatTile } from "../../componets/ui/StatTile";
+import { StatTile } from "../../components/ui/StatTile";
 import { todayISO, isSameDay, inr } from "../../utils/formatters";
 
 export function AdminOverview({ customers, leads, fes }) {
