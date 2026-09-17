@@ -9,7 +9,7 @@ export function initialWizard({ customerId, mobile, skipTo } = {}) {
     customerDraft: { name: "", address: "" },
     idProofTypes: [], idProofFilesByType: {},
     leadId: "", deviceBrand: "", deviceModel: "", expectedPrice: "", purchasePrice: "",
-    commission: "", status: "Pending", remarks: "",
+    commission: "", status: "Completed", remarks: "",
     saved: false,
   };
 }

@@ -336,7 +336,7 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
       {w.step === "finish" && (
         <div>
           <SectionTitle icon={ClipboardList} title="Status &amp; remarks" />
-          <Field label="Status">
+          {/* <Field label="Status">
             <div style={{ display: "flex", gap: 8 }}>
               {["Pending", "Completed", "Cancelled"].map((s) => {
                 const meta = STATUS_META[s];
@@ -353,7 +353,7 @@ export function AddLeadWizard({ wizard, setWizard, fe, customers, leads, addCust
                 );
               })}
             </div>
-          </Field>
+          </Field> */}
           <Field label="Remarks (optional)">
             <TextArea value={w.remarks} onChange={(e) => set({ remarks: e.target.value })} placeholder="Anything worth noting about this visit" />
           </Field>
